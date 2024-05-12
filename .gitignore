@@ -1,0 +1,5 @@
+*.py[cod]
+.env
+celerybeat-schedule
+staticfiles/
+static/bundles/
