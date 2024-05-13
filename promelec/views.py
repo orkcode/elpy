@@ -6,7 +6,7 @@ from datetime import timedelta
 from adrf.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-from promelec.tasks import generate_inventory_csv, analyze_inventory_changes
+from promelec.tasks import generate_inventory_csv
 from promelec.models import PromelecProduct, PromelecInventory, PromelecOrder
 from asgiref.sync import sync_to_async
 from django.http import JsonResponse

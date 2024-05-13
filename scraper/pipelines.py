@@ -7,24 +7,19 @@
 # useful for handling different item types with a single interface
 from itemadapter import ItemAdapter
 from core.transaction import AsyncAtomic
-from promelec.models import PromelecProduct, PromelecBrand, PromelecInventory, PromelecCategory
-from promelec.utils import create_categories, convert_date_to_django_format
+from promelec.models import PromelecProduct, PromelecBrand, PromelecInventory, PromelecCategory, PromelecOrder, StateOder
+from promelec.utils import create_categories, convert_date_to_django_format, compare_warehouse
+from promelec.tasks import process_item_task
 
 
 class PromelecDjangoPipeline:
     async def process_item(self, item, spider):
         adapter = ItemAdapter(item)
-        async with AsyncAtomic():
-            brand, created = await PromelecBrand.objects.aget_or_create(name=adapter['manufacturer'])
-            product, created = await PromelecProduct.objects.aget_or_create(
-                category=await create_categories(adapter['breadcrumbs']),
-                part_number=adapter['part_number'],
-                brand=brand,
-                product_code=adapter['product_code']
-            )
-            inventory = await PromelecInventory.objects.aget_or_create(
-                product=product,
-                updated_date=convert_date_to_django_format(adapter['updated_at']),
-                defaults={'data': {'warehouses': adapter['warehouses']}}
-            )
-            return item
+        part_number = adapter.get('part_number')
+        manufacturer = adapter.get('manufacturer')
+        product_code = adapter.get('product_code')
+        breadcrumbs = adapter.get('breadcrumbs')
+        warehouses = adapter.get('warehouses')
+        updated_at = adapter.get('updated_at')
+        process_item_task.delay(part_number, manufacturer, product_code, breadcrumbs, warehouses, updated_at)
+        return item

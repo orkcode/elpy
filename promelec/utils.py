@@ -45,7 +45,7 @@ async def compare_warehouse(current_data, previous_data):
             current_qty = current_wh['availability']['quantity']
             previous_qty = previous_wh['availability']['quantity']
             if current_qty != previous_qty:
-                change_type = 'пополнение' if current_qty > previous_qty else 'продажа'
+                change_type = 'RESTOCK' if current_qty > previous_qty else 'SOLD'
                 changes['reserves'].append({
                     'warehouse': name,
                     'price': current_wh['prices'][quantity],

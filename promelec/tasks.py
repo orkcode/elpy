@@ -5,8 +5,11 @@ from celery import shared_task
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from promelec.models import PromelecInventory, PromelecProduct, PromelecOrder
-from promelec.utils import compare_warehouse
+from promelec.utils import compare_warehouse, create_categories, convert_date_to_django_format
 from celery.utils.log import get_task_logger
+from core.transaction import AsyncAtomic
+from promelec.models import PromelecBrand, PromelecInventory, PromelecProduct, PromelecOrder, StateOder
+from itemadapter import ItemAdapter
 
 logger = get_task_logger(__name__)
 
@@ -40,42 +43,45 @@ def generate_inventory_csv():
     asyncio.run(generate_csv_file())
 
 
-async def get_inventory(product, index):
-    inventory_list = await sync_to_async(list)(
-        PromelecInventory.objects.filter(product=product).order_by('-updated_date').values('data')[index:index+1]
-    )
-    return inventory_list[0] if inventory_list else None
+async def item_task(part_number, manufacturer, product_code, breadcrumbs, warehouses, updated_at):
+    async with AsyncAtomic():
+        brand, created = await PromelecBrand.objects.aget_or_create(name=manufacturer)
+        product, created = await PromelecProduct.objects.aget_or_create(
+            category=await create_categories(breadcrumbs),
+            part_number=part_number,
+            brand=brand,
+            product_code=product_code
+        )
+        updated_date = convert_date_to_django_format(updated_at)
+        inventory_exists = await PromelecInventory.objects.filter(product=product, updated_date=updated_date).aexists()
+        if inventory_exists:
+            return
 
-
-async def analyze_scraped_items():
-    async for product in PromelecProduct.objects.all():
-        current_inventory = await get_inventory(product, 0)
-        previous_inventory = await get_inventory(product, 1)
-        if not current_inventory or not previous_inventory:
-            continue
-
-        changes = await compare_warehouse(current_inventory['data'], previous_inventory['data'])
-        reserves = changes.get('reserves', [])
-        objects_2_create = []
-        for reserve in reserves:
-            objects_2_create.append(PromelecOrder(
-                product=await PromelecProduct.objects.filter(part_number=product.part_number).afirst(),
-                quantity=reserve['quantity_change'],
-                warehouse=reserve['warehouse'],
-                price=reserve['price']
-            ))
-        await PromelecOrder.objects.abulk_create(objects_2_create, batch_size=100, ignore_conflicts=True)
+        await PromelecInventory.objects.aget_or_create(
+            product=product,
+            updated_date=updated_date,
+            defaults={'data': {'warehouses': warehouses}}
+        )
+        current_warehouse = {'warehouses': warehouses}
+        previous_inventory = await PromelecInventory.objects.filter(product=product).order_by('-updated_date')[
+                                   1:2].afirst()
+        if previous_inventory:
+            changes = await compare_warehouse(current_warehouse, previous_inventory.data)
+            reserves = changes.get('reserves', [])
+            objects_2_create = []
+            for reserve in reserves:
+                state = StateOder.RESTOCK_VERIFICATION if reserve[
+                                                              'change_type'] == 'RESTOCK' else StateOder.SOLD_VERIFICATION
+                objects_2_create.append(PromelecOrder(
+                    product=product,
+                    quantity=reserve['quantity_change'],
+                    warehouse=reserve['warehouse'],
+                    price=reserve['price'],
+                    state=state
+                ))
+            await PromelecOrder.objects.abulk_create(objects_2_create)
 
 
 @shared_task
-def analyze_inventory_changes():
-    asyncio.run(analyze_scraped_items())
-
-
-#async def analyze_scraped_items():
-#    async for product in PromelecProduct.objects.all():
-#        print(f"Analyzin")
-#
-#@shared_task
-#def analyze_inventory_changes():
-#    asyncio.run(analyze_scraped_items())
+def process_item_task(*args, **kwargs):
+    asyncio.run(item_task(*args, **kwargs))
