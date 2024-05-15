@@ -10,6 +10,7 @@ django-environ = "*"
 celery = {extras = ["redis"], version = "*"}
 django-mptt = "*"
 adrf = "*"
+crochet = "*"
 
 [dev-packages]
 

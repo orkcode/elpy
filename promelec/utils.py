@@ -53,3 +53,15 @@ async def compare_warehouse(current_data, previous_data):
                     'quantity_change': abs(current_qty - previous_qty)
                 })
     return changes
+
+
+def split_urls(urls, num_chunks):
+    avg = len(urls) / float(num_chunks)
+    out = []
+    last = 0.0
+
+    while last < len(urls):
+        out.append(urls[int(last):int(last + avg)])
+        last += avg
+
+    return out

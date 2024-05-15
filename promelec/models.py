@@ -4,6 +4,17 @@ from mptt.models import MPTTModel, TreeForeignKey
 from core.models import TimestampsMixin
 
 
+class SitemapURL(TimestampsMixin):
+    url = models.URLField(_("URL"), unique=True)
+
+    class Meta:
+        verbose_name = 'URL карты сайта'
+        verbose_name_plural = 'URL карты сайта'
+
+    def __str__(self):
+        return self.url
+
+
 class PromelecCategory(MPTTModel):
     name = models.CharField(max_length=100)
     parent = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')

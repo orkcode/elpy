@@ -1,17 +1,10 @@
 import os
 from django.conf import settings
 from django.http import FileResponse, HttpResponse
-from django.utils import timezone
-from datetime import timedelta
 from adrf.views import APIView
-from rest_framework.response import Response
-from rest_framework.decorators import api_view
 from promelec.tasks import generate_inventory_csv
-from promelec.models import PromelecProduct, PromelecInventory, PromelecOrder
-from asgiref.sync import sync_to_async
+from promelec.models import PromelecInventory
 from django.http import JsonResponse
-from promelec.utils import compare_warehouse
-import json
 
 
 class GenerateOrDownloadCSVAPIView(APIView):
@@ -27,13 +20,12 @@ class GenerateOrDownloadCSVAPIView(APIView):
 
 class GetBestOffer(APIView):
     async def get(self, request, part_number):
-        product = await PromelecInventory.objects.filter(product__part_number=part_number).afirst()
+        product = await PromelecInventory.objects.filter(product__part_number=part_number).order_by('-updated_date').afirst()
         if product:
             min_price = float('inf')
             min_lead_time = None
             min_quantity = 0
             warehouse_name = None
-            print(product.data)
             for warehouse in product.data['warehouses']:
                 if warehouse['name'] == 'Оптовый склад «Промэлектроника»':
                     if warehouse['prices']:
@@ -60,10 +52,4 @@ class GetBestOffer(APIView):
                 'warehouses': warehouse_name
             })
         return JsonResponse({'error': 'Product not found'}, status=404)
-
-
-class GetDayChanges(APIView):
-    async def get(self, request):
-        analyze_inventory_changes.delay()
-        return JsonResponse({'message': 'Analyzing inventory changes. Please check back in a few moments.'}, status=202)
 

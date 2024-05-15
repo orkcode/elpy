@@ -1,11 +1,11 @@
 import scrapy
 from scrapy.spiders import SitemapSpider
 from scraper.items import PromelecItem
+from promelec.models import SitemapURL
 
 
 class PromElecSitemapSpider(SitemapSpider):
     name = 'promelec_sitemap'
-    sitemap_urls = ['https://www.promelec.ru/sitemap/main.xml']
     sitemap_rules = [
         ('/product/', 'parse')
     ]
@@ -16,7 +16,19 @@ class PromElecSitemapSpider(SitemapSpider):
         }
     }
 
+    def __init__(self, sitemap_urls=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if sitemap_urls is not None:
+            self.sitemap_urls = sitemap_urls
+        else:
+            self.sitemap_urls = self._get_sitemap_urls()
+
+    def _get_sitemap_urls(self):
+        sitemap_urls = SitemapURL.objects.all()
+        return [url.url for url in sitemap_urls]
+
     def parse(self, response):
+        self.logger.info(f'Parsing {response.url}')
         item = PromelecItem()
         breadcrumbs = response.xpath(
             '//ul[@class="bread-crambs"]/li[@itemprop="itemListElement"]/a/span[@itemprop="name"]/text()').extract()
@@ -49,12 +61,12 @@ class PromElecSitemapSpider(SitemapSpider):
                 min_order = row.xpath(
                     './/div[@class="col-table col-table_7"]//span[@class="table-list__counter"]/text()').get()
                 min_order = int(min_order.replace(" ", "")) if min_order else 0
-                # Добавление данных о наличии на складе
+
                 item.add_warehouse(
                     name=name,
                     prices=price_dict,
                     quantity=qty,
-                    min_order=min_order,  # Предполагаем, что минимальный заказ совпадает с указанным количеством
+                    min_order=min_order,
                     lead_time=lead_time_text
                 )
 
