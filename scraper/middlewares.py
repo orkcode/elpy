@@ -2,9 +2,15 @@
 #
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-
+import random
 from scrapy import signals
+from scrapy.exceptions import NotConfigured
+from scrapy.utils.python import to_bytes
+from urllib.parse import urlparse, unquote
 import base64
+from scrapy import settings
+from rotating_proxies.middlewares import RotatingProxyMiddleware
+from rotating_proxies.expire import Proxies
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
@@ -105,20 +111,54 @@ class ScraperDownloaderMiddleware:
 
 
 class BrightProxyMiddleware(object):
+    def __init__(self, settings):
+        if not settings.getbool('BRIGHTDATA_ENABLED', True):
+            raise NotConfigured
+
+        self.proxy = settings.get('BRIGHTDATA_URL', 'http://127.0.0.1:24000')
 
     @classmethod
     def from_crawler(cls, crawler):
         return cls(crawler.settings)
 
-    def __init__(self, settings):
-        self.user = settings.get('PROXY_USER')
-        self.password = settings.get('PROXY_PASSWORD')
-        self.endpoint = settings.get('PROXY_ENDPOINT')
-        self.port = settings.get('PROXY_PORT')
+    @classmethod
+    def from_crawler(cls, crawler):
+        o = cls(crawler.settings)
+        return o
 
     def process_request(self, request, spider):
-        user_credentials = '{user}:{passw}'.format(user=self.user, passw=self.password)
-        basic_authentication = 'Basic ' + base64.b64encode(user_credentials.encode()).decode()
-        host = 'http://{endpoint}:{port}'.format(endpoint=self.endpoint, port=self.port)
-        request.meta['proxy'] = host
-        request.headers['Proxy-Authorization'] = basic_authentication
+        request.meta['proxy'] = self.proxy
+
+
+class RProxyMiddleware:
+    def __init__(self, proxy_list_path):
+        self.proxy_list = []
+        with open(proxy_list_path, 'r') as f:
+            for line in f:
+                self.proxy_list.append(line.strip())
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        proxy_list_path = crawler.settings.get('PROXY_LIST')
+        if not proxy_list_path:
+            raise NotConfigured('PROXY_LIST_PATH not provided')
+
+        middleware = cls(proxy_list_path)
+        crawler.signals.connect(middleware.spider_opened, signals.spider_opened)
+        return middleware
+
+    def process_request(self, request, spider):
+        proxy = random.choice(self.proxy_list)
+        spider.logger.info(f'Using proxy {proxy}')
+        request.meta['proxy'] = f'http://{proxy}'
+
+    def process_response(self, request, response, spider):
+        spider.logger.info(f'Processing response from {response.url}')
+        if response.status != 200:
+            proxy = random.choice(self.proxy_list)
+            request.meta['proxy'] = f'http://{proxy}'
+            return request
+        return response
+
+    def spider_opened(self, spider):
+        spider.logger.info('Using random proxy middleware')

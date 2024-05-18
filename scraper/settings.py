@@ -1,6 +1,7 @@
 import os
 import sys
 import django
+from core import settings
 
 # Scrapy settings for scraper project
 #
@@ -32,12 +33,12 @@ NEWSPIDER_MODULE = "scraper.spiders"
 ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-CONCURRENT_REQUESTS = 100
+CONCURRENT_REQUESTS = 32
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-#DOWNLOAD_DELAY = 1
+DOWNLOAD_DELAY = 0
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -57,7 +58,8 @@ CONCURRENT_REQUESTS = 100
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 #SPIDER_MIDDLEWARES = {
-#    "scraper.middlewares.ScraperSpiderMiddleware": 543,
+#    #"scraper.middlewares.ScraperSpiderMiddleware": 543,
+#    'scraper.middlewares.MyRotatingProxiesMiddleware': 610,
 #}
 
 # Enable or disable downloader middlewares
@@ -81,15 +83,15 @@ CONCURRENT_REQUESTS = 100
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
 #AUTOTHROTTLE_ENABLED = True
-# The initial download delay
-#AUTOTHROTTLE_START_DELAY = 0.5
-# The maximum download delay to be set in case of high latencies
-#AUTOTHROTTLE_MAX_DELAY = 60
-# The average number of requests Scrapy should be sending in parallel to
-# each remote server
-#AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
-# Enable showing throttling stats for every response received:
-#AUTOTHROTTLE_DEBUG = False
+## The initial download delay
+#AUTOTHROTTLE_START_DELAY = 0.2
+## The maximum download delay to be set in case of high latencies
+#AUTOTHROTTLE_MAX_DELAY = 1.0
+## The average number of requests Scrapy should be sending in parallel to
+## each remote server
+#AUTOTHROTTLE_TARGET_CONCURRENCY = 16
+## Enable showing throttling stats for every response received:
+#AUTOTHROTTLE_DEBUG = True
 
 # Enable and configure HTTP caching (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings
@@ -99,16 +101,19 @@ CONCURRENT_REQUESTS = 100
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
 
+# Activate the middleware
+BRIGHTDATA_ENABLED = False
+BRIGHTDATA_URL = 'http://127.0.0.1:24000'
 
-PROXY_USER = 'brd-customer-hl_30f4669a-zone-datacenter_proxy1'
-PROXY_PASSWORD = 'vde5ki5c8jo6'
-PROXY_ENDPOINT = 'brd.superproxy.io'
-PROXY_PORT = '22225'
 
 DOWNLOADER_MIDDLEWARES = {
-    'scraper.middlewares.BrightProxyMiddleware': 350,
-    'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 400,
+    'scrapy.downloadermiddlewares.retry.RetryMiddleware': 90,
+    'advanced-scrapy-proxies.RandomProxy': 100,
+    'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 110
 }
+
+PROXY_MODE = 0
+PROXY_LIST = 'scraper/proxies.txt'
 
 # Set settings whose default value is deprecated to a future-proof value
 REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"

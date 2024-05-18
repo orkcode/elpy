@@ -6,7 +6,6 @@ import asyncio
 from celery import shared_task
 from asgiref.sync import sync_to_async
 from django.conf import settings
-from scrapy.crawler import CrawlerProcess
 from scraper.spiders.promelec_sitemap import SitemapSpider
 from promelec.models import PromelecInventory, PromelecProduct, PromelecOrder
 from promelec.utils import compare_warehouse, create_categories, convert_date_to_django_format, split_urls
@@ -111,49 +110,8 @@ class WebScraperRunner:
         p.start()
         p.join()
 
-
-@shared_task
+@shared_task()
 def fetch_goods_xml_urls():
-    runner = WebScraperRunner()
-    runner.crawl(PromElecSitemapSpider)
-    runner.run()
-
-
-#def spider_process(spider_cls, urls_chunk):
-#    class ChunkedSpider(spider_cls):
-#        def _get_sitemap_urls(self):
-#            return urls_chunk
-#
-#    runner = WebScraperRunner()
-#    runner.crawl(ChunkedSpider)
-#    runner.run()
-#
-#def split_list(lst, n):
-#    k, m = divmod(len(lst), n)
-#    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
-#
-#
-#class MultiSpiderRunner:
-#    def __init__(self, num_spiders, spider_cls):
-#        self.num_spiders = num_spiders
-#        self.spider_cls = spider_cls
-#
-#    def run(self):
-#        sitemap_urls = SitemapURL.objects.values_list('url', flat=True)
-#        urls_chunks = split_list(sitemap_urls, self.num_spiders)
-#
-#        processes = []
-#        for urls_chunk in urls_chunks:
-#            p = Process(target=spider_process, args=(self.spider_cls, urls_chunk))
-#            p.start()
-#            processes.append(p)
-#
-#        for p in processes:
-#            p.join()
-#
-#
-#@shared_task
-#def fetch_goods_xml_urls():
-#    runner = MultiSpiderRunner(4, PromElecSitemapSpider)
-#    runner.run()
-
+    crawler = WebScraperRunner()
+    crawler.crawl(PromElecSitemapSpider)
+    crawler.run()

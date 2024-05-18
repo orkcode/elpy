@@ -1,0 +1,13 @@
+REMOTE_ADDR = 13.38.31.90
+REMOTE_PORT = 62823
+REQUEST_METHOD = GET
+REQUEST_URI = /product/21850/
+REQUEST_TIME_FLOAT = 1715956513.4498394
+REQUEST_TIME = 1715956513
+HTTP_REFERER = https://www.promelec.ru/sitemap/Goods.xml
+HTTP_ACCEPT = text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+HTTP_ACCEPT-LANGUAGE = en
+HTTP_USER-AGENT = Scrapy/2.11.2 (+https://scrapy.org)
+HTTP_ACCEPT-ENCODING = gzip, deflate
+HTTP_COOKIE = _frontendSessionId=f88312b30b9d87e500ebf9b723020921; __ddgid_=WbMOHg3wAOBsQPKD; __ddgmark_=UMDboipDK08ONEGj; __ddg1_=YJViW36onPYZWSZuCQPL
+HTTP_HOST = www.promelec.ru
